@@ -1,38 +1,130 @@
-import requests
+from cloudscraper import CloudScraper
 from bs4 import BeautifulSoup
-import random
-import time
+from requests.models import Response
 
-class AntiDetectRequests:
-    def __init__(self):
-        self.session = requests.Session()
-        self.user_agents = [
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:45.0) Gecko/20100101 Firefox/45.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/602.3.12 (KHTML, like Gecko) Version/10.0.2 Safari/602.3.12',
-            # Add more user agents as needed
-        ]
+adapter = None
+def get_adapter():
+    global adapter
+    if adapter:
+      return adapter
+    else:
+      from .got_adapter import GotAdapter
+      adapter = GotAdapter
+      return adapter  
+# Create a subclass of CloudScraper
+class AntiDetectRequests(CloudScraper):
     
-    def get(self, url, **kwargs):
-        headers = self._get_headers()
-        response = self.session.get(url, headers=headers, **kwargs)
-        # response.raise_for_status()
-        time.sleep(random.uniform(1, 3))  # Random sleep to mimic human behavior
-        return response
-    
-    def bs4(self, url, **kwargs):
-        response = self.get(url, **kwargs)
-        return BeautifulSoup(response.content, 'html.parser')
+    def __init__(self, *args, use_stealth=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_stealth = use_stealth
 
-    def _get_headers(self):
-        user_agent = random.choice(self.user_agents)
-        headers = {
-            'User-Agent': user_agent,
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
+    def request(self, method, url, *args, **kwargs):
+        if self.use_stealth:
+            # Use static methods of GotAdapter for making the request
+            got_method = getattr(get_adapter(), method.lower(), None)
+            
+            
+            if 'proxies' not in kwargs and hasattr(self, 'proxies') and getattr(self, 'proxies', None):
+              kwargs.update({'proxies': getattr(self, 'proxies', None)})
+            
+            if got_method:
+                return got_method(url, *args, **kwargs)
+            else:
+                raise NotImplementedError(f"Method {method} is not implemented in GotAdapter.")
+        else:
+            # Pass all arguments to the parent CloudScraper class
+            return super().request(method, url, *args, **kwargs)
+
+
+    def get(self, url, 
+            referer='https://www.google.com/', 
+            params = None,
+            data = None,
+            headers = None,
+            cookies = None,
+            files = None,
+            auth = None,
+            timeout = None,
+            allow_redirects = None,
+            proxies = None,
+            hooks = None,
+            stream = None,
+            verify = None,
+            cert = None,
+            json = None,
+            **kwargs) -> Response:
+    
+
+        # Only update kwargs with non-None named arguments
+        named_args = {
+            'params': params, 'data': data, 'headers': headers, 'cookies': cookies,
+            'files': files, 'auth': auth, 'timeout': timeout, 
+            'allow_redirects': allow_redirects, 'proxies': proxies, 'hooks': hooks, 
+            'stream': stream, 'verify': verify, 'cert': cert, 'json': json
         }
-        return headers
+        updated = {k: v for k, v in named_args.items() if v is not None}
+        kwargs.update(updated)
+        
+        headers = kwargs.get('headers', {})
+
+        # Set the referrer only if it's not None and 'Referer' is not already set in headers
+        if referer is not None and ('Referer' not in headers or 'referer' not in headers):
+            headers['Referer'] = referer
+            kwargs['headers'] = headers
+
+        kwargs.setdefault("allow_redirects", True)
+            # Use static methods of GotAdapter for making the request
+        return self.request("GET", url, **kwargs)
+
+
+    # Method to get bs4 object by passing a URL
+    def bs4(self, url, 
+             referer='https://www.google.com/', 
+            params = None,
+            data = None,
+            headers = None,
+            cookies = None,
+            files = None,
+            auth = None,
+            timeout = None,
+            allow_redirects = None,
+            proxies = None,
+            hooks = None,
+            stream = None,
+            verify = None,
+            cert = None,
+            json = None,
+             **kwargs) -> BeautifulSoup:
+        # Only update kwargs with non-None named arguments
+        named_args = {
+            'referer': referer,
+            'params': params,
+              'data': data, 'headers': headers, 'cookies': cookies,
+            'files': files, 'auth': auth, 'timeout': timeout, 
+            'allow_redirects': allow_redirects, 'proxies': proxies, 'hooks': hooks, 
+            'stream': stream, 'verify': verify, 'cert': cert, 'json': json
+        }
+        updated = {k: v for k, v in named_args.items() if v is not None}
+        kwargs.update(updated)
+        
+        
+        response = self.get(url,  **kwargs)
+        
+        # Check if the request was successful
+        if response.status_code < 299:
+            # Create a BeautifulSoup object from the response text
+            return BeautifulSoup(response.text, 'html.parser')
+        else:
+            # Raise an HTTPError for bad requests
+            response.raise_for_status()
+
+    # Method to get bs4 object by passing a URL
+    def response_to_bs4(self, response):
+            return BeautifulSoup(response.text, 'html.parser')
+
+    # 
+
+    # TODO REMOVE
+    # def google_get(self, url, **kwargs):
+    #         kwargs['headers'] = {**kwargs.get('headers', {}), 'Referer':"https://www.google.com/"}
+    #         return self.get(url, **kwargs)

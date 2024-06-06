@@ -36,6 +36,6 @@ class Zonaprop(BaseProvider):
                     'provider': self.provider_name
                     }
 
-            page += 1
             page_link = self.provider_data['base_url'] + source.replace(".html", f"-pagina-{page}.html")
+            page += 1
     

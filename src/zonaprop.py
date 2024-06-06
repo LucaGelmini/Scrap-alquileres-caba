@@ -18,6 +18,7 @@ def _get_url_list(max_number:int, type_building:str, type_operation:str) -> list
     request = AntiDetectRequests()
     response = request.get(_get_page_number_url(max_number, type_building, type_operation), allow_redirects=True)
     last_page_url = response.url
+    print(last_page_url)
     match = re.search(r'(\d+)\.html$', last_page_url)
     if match:
         last_page_number = (match.group(1))
@@ -139,17 +140,15 @@ def main_scrap_zonaprop(
     """
     url_list =  _get_url_list(max_number_pages_zonaprop, type_building, type_operation)
     print("Max html page:", url_list[-1])
-    try:
-        request = AntiDetectRequests()
-        final_list = _scrape_property_listings(request, url_list)
-        # print(final_list)
-        if export_final_results:
-            df = pd.DataFrame(final_list)
-            df["scrap_date"] = datetime.now()
-            df = df.drop_duplicates(subset="id") #there are duplicates at house sellings, I do not know why
-            print(df)
-            _export_scrap_zonaprop(df, type_operation ,type_building)
-            print("Results exported correctly")
-        return final_list
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    
+    request = AntiDetectRequests()
+    final_list = _scrape_property_listings(request, url_list)
+    # print(final_list)
+    if export_final_results:
+        df = pd.DataFrame(final_list)
+        df["scrap_date"] = datetime.now()
+        df = df.drop_duplicates(subset="id") #there are duplicates at house sellings, I do not know why
+        print(df)
+        _export_scrap_zonaprop(df, type_operation ,type_building)
+        print("Results exported correctly")
+    return final_list
