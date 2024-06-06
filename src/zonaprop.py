@@ -7,6 +7,8 @@ import requests
 from typing import Literal
 from datetime import datetime
 from src.constants import zona_prop_url, max_number_pages_zonaprop
+from lib.anti_detect_requests import AntiDetectRequests
+
 
 def _get_page_number_url(number:int, type_building:str, type_operation:str) -> str:
     url = zona_prop_url + type_building + f"-{type_operation}-capital-federal-pagina-{number}.html"
@@ -129,8 +131,7 @@ def _export_scrap_zonaprop(df:pd.DataFrame,
 def main_scrap_zonaprop(
     type_operation: Literal["alquiler", "venta"] = "alquiler", #bug with "venta"
     type_building:Literal["locales-comerciales", "departamentos","oficinas-comerciales"] = "departamentos",
-    export_final_results:bool = True,
-                        ) -> list | None:
+    export_final_results:bool = True) -> list | None:
     """Runs the main process of scraping property listings from ZonaProp.
 
     Returns:
